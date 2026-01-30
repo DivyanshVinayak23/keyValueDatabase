@@ -13,7 +13,6 @@ struct FileHeader {
     uint32_t magicNumber;    // 4 bytes
     int64_t rootOffset;      // 8 bytes
     int64_t freeListHead;    // 8 bytes
-    
     // 4 + 8 + 8 = 20 bytes used.
     //pad the rest to ensure the header takes exactly one block.
     char padding[BLOCK_SIZE - 20];
@@ -36,12 +35,12 @@ struct BTreeNode {
     bool isLeaf;             // 1 byte
     int32_t keyCount;        // 4 bytes
     int64_t parentOffset;    // 8 bytes
-    
-    int64_t childrenOffsets[MAX_KEYS + 1]; 
-    
+
+    int64_t childrenOffsets[MAX_KEYS + 1];
+
     int64_t keys[MAX_KEYS];
-    
-    int64_t values[MAX_KEYS]; 
+
+    int64_t values[MAX_KEYS];
 
     BTreeNode() {
         isLeaf = false;
@@ -62,7 +61,6 @@ int main() {
     cout << "Configuration Check:" << endl;
     cout << "Block Size: " << BLOCK_SIZE << " bytes" << endl;
     cout << "Max Keys per Node: " << MAX_KEYS << endl;
-    
     cout << "\nStruct Sizes:" << endl;
     cout << "FileHeader: " << sizeof(FileHeader) << " bytes" << endl;
     cout << "BTreeNode:  " << sizeof(BTreeNode) << " bytes" << endl;
