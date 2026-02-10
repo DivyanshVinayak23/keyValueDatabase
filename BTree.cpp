@@ -44,7 +44,6 @@ class BTree{
         BTreeNode node;
 
         while (currentPageId != -1) {
-            // 1. Fetch the node from disk
             pager.readNode(currentPageId, node);
 
             // 2. Search inside the node (Linear Search)
@@ -56,8 +55,6 @@ class BTree{
                 }
                 
                 // Case B: Key is smaller than current separator?
-                // This is your "Left Child" case! 
-                // We found the correct door. Stop searching this node.
                 if (key < node.keys[i]) {
                     break; 
                 }
@@ -66,9 +63,6 @@ class BTree{
                 i++;
             }
 
-            // At this point, 'i' is the correct child index.
-            // If i == 0, go to Left Child.
-            // If i == keyCount, go to Far Right Child.
 
             // 3. If we are at a leaf and didn't find it -> It doesn't exist.
             if (node.isLeaf) {
@@ -80,6 +74,64 @@ class BTree{
         }
 
         return -1;
+    }
+
+    void put(int64_t key, int64_t value){
+        int64_t currentPageId = rootPageId;
+        BTreeNode node;
+
+        while (currentPageId != -1) {
+            pager.readNode(currentPageId, node);
+            int i = 0;
+            while (i < node.keyCount) {
+                // Case A: Exact Match found!
+                if (key == node.keys[i]) {
+                    node.values[i] = value;
+                    pager.writeNode(currentPageId, node);
+                    return;
+                }
+                
+                // Case B: Key is smaller than current separator?
+                if (key < node.keys[i]) {
+                    break; 
+                }
+                
+                // Continue to next key
+                i++;
+            }
+
+
+            // 3. If we are at a leaf and didn't find it -> We are at the right spot.
+            if (node.isLeaf) {
+                
+                return;
+            }
+
+            // 4. Go deeper (Update currentPageId to the child)
+            currentPageId = node.childrenOffsets[i]; 
+        }
+            if (node.keyCount >= MAX_KEYS) {
+            cout << "Error: Node is full. Splitting not implemented yet." << endl;
+            return;
+        }
+
+        // 5. Use linear search to find the correct spot for the incoming key.
+        int insertIndex = 0;
+        while (insertIndex < node.keyCount && node.keys[insertIndex] < key) {
+            insertIndex++;
+        }
+
+        //6. Shift all the values right by one which are to the right of the insertIndex to make room for the new key.
+        for(int j = node.keyCount; j > insertIndex; j--){
+            node.keys[j] = node.keys[j - 1];
+            node.values[j] = node.values[j - 1];
+        }
+
+        //7. Insert the new key and value.
+        node.keys[insertIndex] = key;
+        node.values[insertIndex] = value;
+        node.keyCount++;
+        pager.writeNode(currentPageId, node);
     }
 
     private:
