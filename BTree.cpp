@@ -76,63 +76,82 @@ class BTree{
         return -1;
     }
 
-    void put(int64_t key, int64_t value){
+    void set(int64_t key, int64_t value) {
         int64_t currentPageId = rootPageId;
         BTreeNode node;
 
-        while (currentPageId != -1) {
+        while (true) {
             pager.readNode(currentPageId, node);
+
             int i = 0;
+
             while (i < node.keyCount) {
-                // Case A: Exact Match found!
                 if (key == node.keys[i]) {
                     node.values[i] = value;
                     pager.writeNode(currentPageId, node);
                     return;
                 }
-                
-                // Case B: Key is smaller than current separator?
                 if (key < node.keys[i]) {
                     break; 
                 }
-                
-                // Continue to next key
                 i++;
             }
 
-
-            // 3. If we are at a leaf and didn't find it -> We are at the right spot.
             if (node.isLeaf) {
-                
-                return;
+                break;
             }
 
-            // 4. Go deeper (Update currentPageId to the child)
-            currentPageId = node.childrenOffsets[i]; 
+            // Not a leaf? Keep going deeper.
+            currentPageId = node.childrenOffsets[i];
         }
-            if (node.keyCount >= MAX_KEYS) {
+
+
+        if (node.keyCount >= MAX_KEYS) {
             cout << "Error: Node is full. Splitting not implemented yet." << endl;
             return;
         }
 
-        // 5. Use linear search to find the correct spot for the incoming key.
+        // Find the specific index where the new key goes
         int insertIndex = 0;
         while (insertIndex < node.keyCount && node.keys[insertIndex] < key) {
             insertIndex++;
         }
 
-        //6. Shift all the values right by one which are to the right of the insertIndex to make room for the new key.
-        for(int j = node.keyCount; j > insertIndex; j--){
+        for (int j = node.keyCount; j > insertIndex; j--) {
             node.keys[j] = node.keys[j - 1];
             node.values[j] = node.values[j - 1];
         }
 
-        //7. Insert the new key and value.
         node.keys[insertIndex] = key;
         node.values[insertIndex] = value;
-        node.keyCount++;
+        node.keyCount++; 
+
         pager.writeNode(currentPageId, node);
     }
+  
+
+// It returns the key that needs to be pushed up to the parent.
+int64_t splitLeafData(BTreeNode& fullNode, BTreeNode& newNode) {
+    int midIndex = MAX_KEYS / 2; // This is 84
+    
+
+    int64_t promotedKey = fullNode.keys[midIndex];
+    int64_t promotedValue = fullNode.values[midIndex];
+    
+    int newIndex = 0;
+    for (int index = midIndex + 1; index < MAX_KEYS; index++) {
+        newNode.keys[newIndex] = fullNode.keys[index];
+        newNode.values[newIndex] = fullNode.values[index];
+        newIndex++;
+    }
+
+    newNode.keyCount = MAX_KEYS - midIndex - 1;
+    fullNode.keyCount = midIndex;
+    
+    newNode.isLeaf = true;
+    
+    return promotedKey;
+}
 
     private:
         void initializeNewFile(){
