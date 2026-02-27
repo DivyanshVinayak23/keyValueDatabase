@@ -153,6 +153,42 @@ int64_t splitLeafData(BTreeNode& fullNode, BTreeNode& newNode) {
     return promotedKey;
 }
 
+void splitRoot(int64_t oldRootPageId, BTreeNode& oldRoot) {
+        BTreeNode rightNode;
+        
+        int64_t promotedValue = oldRoot.values[MAX_KEYS / 2]; 
+        int64_t promotedKey = splitLeafData(oldRoot, rightNode);
+        
+        FileHeader header;
+        pager.readHeader(header);
+        
+        int64_t rightPageId = pager.getNewPageID(header.freeListHead);
+        // Hack for now: pretend we wrote rightPageId so the file grows, 
+        int64_t newRootPageId = rightPageId + 1; 
+
+        BTreeNode newRoot;
+        newRoot.isLeaf = false;
+        newRoot.keyCount = 1;
+        newRoot.keys[0] = promotedKey;
+        newRoot.values[0] = promotedValue;
+        newRoot.childrenOffsets[0] = oldRootPageId;
+        newRoot.childrenOffsets[1] = rightPageId;
+        newRoot.parentOffset = -1; // Root has no parent
+
+        oldRoot.parentOffset = newRootPageId;
+        rightNode.parentOffset = newRootPageId;
+
+        pager.writeNode(oldRootPageId, oldRoot);
+        pager.writeNode(rightPageId, rightNode);
+        pager.writeNode(newRootPageId, newRoot);
+
+        header.rootOffset = newRootPageId;
+        pager.writeHeader(header);
+        rootPageId = newRootPageId;
+        
+        cout << "Root split successfully. New Root is Page " << newRootPageId << endl;
+    }
+
     private:
         void initializeNewFile(){
             //We will create a new file with a single node.
