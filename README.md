@@ -108,6 +108,10 @@ Disk reads are limited to tree height in worst case.
 
 ---
 
+## Why B-Tree Instead of Hash Index?
+Ordered traversal -> Yes, Range queries - > Efficient, Disk locality -> High, Predictable height -> Yes.
+B-Trees are optimized for block storage and minimize random disk access. This makes them suitable for persistent storage engines.
+
 ## Build Instructions
 
 ### Requirements
@@ -124,14 +128,8 @@ cd keyValueDatabase
 g++ -std=c++11 -O2 -o kvdb BTree.cpp nodeStructure.cpp pager.cpp test.cpp
 ./kvdb
 
+---
 
-### Design Rationale
 
-Why B-Tree Instead of Hash Index?
-Property	B-Tree	Hash                   Index
-Ordered traversal	Yes	                No
-Range queries	Efficient              Inefficient
-Disk locality	High	               Low
-Predictable heightYes	               N/A
 
-B-Trees are optimized for block storage and minimize random disk access. This makes them suitable for persistent storage engines.
+
