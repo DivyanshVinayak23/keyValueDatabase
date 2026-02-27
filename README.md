@@ -1,215 +1,137 @@
-# 🌳 Key-Value Database with B-Tree Magic ✨
+# Key-Value Storage Engine (C++)
 
-> A high-performance, memory-efficient key-value database engine built in C++ with B-Tree indexing and smart disk paging.
+A disk-backed key-value storage engine implemented in C++ with a B-Tree index and a custom pager subsystem. The system is designed for predictable O(log n) operations, efficient disk I/O, and scalable datasets that exceed available memory.
 
-## 🎯 What Is This?
+Repository:  
+https://github.com/DivyanshVinayak23/keyValueDatabase
 
-Welcome to a sophisticated **key-value database** implementation that combines the power of **B-Trees**, **node structures**, and **intelligent paging** to deliver blazing-fast data storage and retrieval. This isn't your average hash map—this is a production-grade database engine designed for efficiency and scalability!
+---
 
-## 🏗️ Architecture Overview
+## Overview
 
-### The Three Pillars of Power 💪
+This project implements a persistent key-value database with:
 
-#### 1. **🌲 B-Tree Implementation** (`BTree.cpp`)
-The heart of our database! B-Trees maintain sorted data and allow for efficient search, insertion, and deletion operations.
+- **B-Tree indexing** for ordered storage and logarithmic search
+- **Fixed-size page management** for disk-backed persistence
+- **Custom pager layer** for memory–disk coordination
+- **Self-balancing tree structure** optimized for block storage
 
-- **O(log n) operations** - Lightning-fast lookups
-- **Self-balancing** - Tree stays optimized automatically
-- **Range queries** - Find all keys within a range efficiently
-- **Disk-friendly** - Node organization mirrors disk blocks for minimal I/O
+The design mirrors foundational database engine principles: page-oriented storage, hierarchical indexing, and separation of logical structure from physical persistence.
 
-**Why B-Trees rock:**
-```
-         [40, 60]
-        /    |    \
-    [10,20] [50] [70,80]
-```
+---
 
-#### 2. **🔗 Node Structure** (`nodeStructure.cpp` & `nodeStructure`)
-The building blocks of our B-Tree! Each node is carefully crafted to hold:
+## Architecture
 
-- **Keys** - Your lookup values
-- **Values** - The data you care about
-- **Child pointers** - Links to other nodes
-- **Metadata** - Information about the node's state
+The system is divided into three primary components:
 
-Every node is optimized for memory alignment and cache efficiency!
+### 1. B-Tree (`BTree.cpp`)
 
-#### 3. **📄 Pager System** (`pager.cpp`)
-The intelligent bridge between RAM and disk storage!
+The B-Tree is the logical indexing layer responsible for:
 
-The pager handles:
-- **Page allocation & management** - Efficiently uses disk space
-- **Caching layer** - Keeps hot pages in memory
-- **Dirty page tracking** - Knows what needs to be written back to disk
-- **Lazy writes** - Batches disk operations for speed
+- Key insertion
+- Key lookup
+- Deletion
+- Structural rebalancing (split/merge operations)
+- Ordered traversal and range queries
 
-Think of it as your database's "memory manager"—it decides what stays in RAM and what goes to disk! 🧠💾
+#### Characteristics
 
-## 🚀 Quick Start
+- Search: O(log n)
+- Insert: O(log n)
+- Delete: O(log n)
+- Range Query: O(log n + k)
 
-### Prerequisites
-- **C++ 11 or later** 
-- A C++ compiler (g++, clang, MSVC)
-- Standard build tools (make, cmake)
+The tree maintains strict ordering and ensures height remains logarithmic with respect to the number of keys.
 
-### Building
+Node layout is structured to align with page boundaries to minimize disk I/O amplification.
+
+---
+
+### 2. Node Structure (`nodeStructure.cpp`, `nodeStructure`)
+
+Each node contains:
+
+- Ordered key array
+- Associated value references
+- Child page identifiers (for internal nodes)
+- Metadata (e.g., key count, leaf flag)
+
+The structure is designed to:
+
+- Maximize key density per page
+- Minimize pointer overhead
+- Maintain deterministic memory layout
+- Support serialization for disk persistence
+
+Nodes map directly to pages managed by the pager.
+
+---
+
+### 3. Pager (`pager.cpp`)
+
+The pager abstracts physical storage. It is responsible for:
+
+- Page allocation
+- Page caching in memory
+- Dirty page tracking
+- Lazy flushing to disk
+- Page retrieval by ID
+
+The database file is divided into fixed-size pages (e.g., 4KB). Pages are loaded into memory on demand and written back only when modified.
+
+This design enables:
+
+- Efficient handling of datasets larger than RAM
+- Controlled memory usage
+- Reduced disk writes via batching
+
+---
+
+## Data Flow
+
+### Insert Operation
+
+1. Traverse B-Tree from root to target leaf
+2. Load required pages through pager
+3. Insert key in sorted position
+4. Split node if capacity exceeded
+5. Mark modified pages as dirty
+6. Flush to disk (explicit or deferred)
+
+### Search Operation
+
+1. Traverse tree from root
+2. Pager loads pages on demand
+3. Return associated value if key exists
+
+Disk reads are limited to tree height in worst case.
+
+---
+
+## Build Instructions
+
+### Requirements
+
+- C++11 or later
+- g++, clang, or MSVC
+- Standard build tooling
+
+### Compile
 
 ```bash
 git clone https://github.com/DivyanshVinayak23/keyValueDatabase.git
 cd keyValueDatabase
-g++ -std=c++11 -o kvdb BTree.cpp nodeStructure.cpp pager.cpp test.cpp
+g++ -std=c++11 -O2 -o kvdb BTree.cpp nodeStructure.cpp pager.cpp test.cpp
 ./kvdb
-```
 
-## 💡 Core Features
 
-| Feature | Benefit | Why It Matters |
-|---------|---------|----------------|
-| 🎯 **B-Tree Indexing** | O(log n) search complexity | Scales to billions of records |
-| 💾 **Pager System** | Efficient disk I/O | Handles datasets larger than RAM |
-| 🔐 **Node Persistence** | Data survives restarts | Production-ready reliability |
-| ⚡ **Cache Optimization** | Minimized disk access | 100x faster than pure disk I/O |
-| 🎲 **Self-Balancing** | Optimal tree structure | Maintains performance over time |
+### Design Rationale
 
-## 📚 API Reference
+Why B-Tree Instead of Hash Index?
+Property	B-Tree	Hash                   Index
+Ordered traversal	Yes	                No
+Range queries	Efficient              Inefficient
+Disk locality	High	               Low
+Predictable heightYes	               N/A
 
-### Core Operations
-
-```cpp
-// Create a new B-Tree
-BTree db;
-
-// Insert key-value pairs
-db.insert(key, value);
-
-// Search for a value
-Value* result = db.search(key);
-
-// Delete entries
-db.remove(key);
-
-// Retrieve a node from the pager
-Node* node = pager.getNode(pageId);
-
-// Write changes back to disk
-pager.flushPage(pageId);
-```
-
-## 🔍 How It Works: A Journey Through the Code
-
-### 1️⃣ **Insertion Flow**
-```
-User inserts (key, value)
-    ↓
-B-Tree searches for correct position
-    ↓
-Node structure is updated
-    ↓
-Pager marks page as dirty
-    ↓
-Data persisted to disk (when convenient)
-```
-
-### 2️⃣ **Search Flow**
-```
-User searches for key
-    ↓
-B-Tree traverses from root
-    ↓
-Pager loads pages from cache/disk as needed
-    ↓
-Value returned in microseconds! ⚡
-```
-
-## 📊 Performance Characteristics
-
-```
-Operation    | Time Complexity | Space Complexity
--------------|-----------------|------------------
-Search       | O(log n)        | O(1)
-Insert       | O(log n)        | O(1)
-Delete       | O(log n)        | O(1)
-Range Query  | O(log n + k)    | O(k)
-```
-
-Where **k** is the number of results returned!
-
-## 🧪 Testing
-
-Run the test suite to verify everything works:
-
-```bash
-./kvdb
-```
-
-Check out `test.cpp` to see how the database handles various scenarios! 🎪
-
-## 🎨 Project Structure
-
-```
-keyValueDatabase/
-├── BTree.cpp              # Core B-Tree implementation
-├── nodeStructure.cpp      # Node class implementation
-├── nodeStructure          # Node structure header/definitions
-├── pager.cpp              # Pager system for disk I/O
-├── test.cpp               # Unit tests and examples
-└── README.md              # This awesome file! 📖
-```
-
-## 🔮 The Magic Behind the Scenes
-
-### Why B-Trees Instead of Hash Tables?
-
-| Aspect | B-Tree | Hash Table |
-|--------|--------|-----------|
-| **Range Queries** | ✅ Fast | ❌ Slow |
-| **Sorted Traversal** | ✅ Natural | ❌ Requires sorting |
-| **Disk-Friendly** | ✅ Excellent | ❌ Poor |
-| **Memory Usage** | ✅ Efficient | ❌ More overhead |
-
-### The Pager's Secret Sauce 🌶️
-
-Instead of loading entire files into memory, the pager:
-1. Divides the database into **fixed-size pages** (typically 4KB)
-2. Keeps frequently accessed pages in a **cache**
-3. Swaps pages in/out based on usage patterns
-4. Only writes **dirty pages** back to disk
-
-This means you can have a **1TB database** with only **100MB of RAM**! 🎉
-
-## 🚧 Future Enhancements
-
-- [ ] Multi-threaded concurrent access
-- [ ] Write-ahead logging (WAL) for crash recovery
-- [ ] Compression support for values
-- [ ] Bloom filters for missing key detection
-- [ ] Transaction support with ACID guarantees
-- [ ] Network API for remote access
-
-## 🤝 Contributing
-
-Found a bug? Have an awesome idea? Let's build this together! 🚀
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/awesome-feature`)
-3. **Commit** your changes (`git commit -m 'Add awesome feature'`)
-4. **Push** to the branch (`git push origin feature/awesome-feature`)
-5. **Open** a Pull Request
-
-## 📄 License
-
-This project is licensed under the **MIT License** - see the LICENSE file for details.
-
-## 🙌 Acknowledgments
-
-Built with ❤️ and powered by:
-- The elegance of B-Tree data structures
-- Decades of database engine research
-- Coffee ☕ and determination
-
----
-
-**Made with 💻 by [DivyanshVinayak23](https://github.com/DivyanshVinayak23)**
-
-⭐ If this project helps you, please consider giving it a star! It means a lot! 🌟
+B-Trees are optimized for block storage and minimize random disk access. This makes them suitable for persistent storage engines.
