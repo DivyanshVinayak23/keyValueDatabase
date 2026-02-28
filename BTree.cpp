@@ -189,6 +189,39 @@ void splitRoot(int64_t oldRootPageId, BTreeNode& oldRoot) {
         cout << "Root split successfully. New Root is Page " << newRootPageId << endl;
     }
 
+    void insertIntoParent(int64_t parentPageId, int64_t promotedKey, int64_t promotedValue, int64_t rightChildPageId) {
+    BTreeNode parentNode;
+    pager.readNode(parentPageId, parentNode);
+
+    if (parentNode.keyCount >= MAX_KEYS) {
+        cout << "Cascading split required! (Parent is full). To be implemented..." << endl;
+        return;
+    }
+
+    int insertIndex = 0;
+    while (insertIndex < parentNode.keyCount && parentNode.keys[insertIndex] < promotedKey) {
+        insertIndex++;
+    }
+
+    for(int j = parentNode.keyCount; j > insertIndex; j--){
+        parentNode.keys[j] = parentNode.keys[j - 1];
+        parentNode.values[j] = parentNode.values[j - 1];
+    }
+    
+
+    for(int j = parentNode.keyCount + 1; j > insertIndex + 1; j--){
+        parentNode.childrenOffsets[j] = parentNode.childrenOffsets[j - 1];
+    }
+
+    parentNode.keys[insertIndex] = promotedKey;
+    parentNode.values[insertIndex] = promotedValue;
+    
+    parentNode.childrenOffsets[insertIndex + 1] = rightChildPageId;
+    
+    parentNode.keyCount++;
+    pager.writeNode(parentPageId, parentNode);
+}
+
     private:
         void initializeNewFile(){
             //We will create a new file with a single node.
