@@ -107,8 +107,30 @@ class BTree{
 
 
         if (node.keyCount >= MAX_KEYS) {
-            cout << "Error: Node is full. Splitting not implemented yet." << endl;
-            return;
+            // Case A: The full node is the Root
+            if (node.parentOffset == -1) {
+                splitRoot(currentPageId, node);
+                return set(key, value); 
+            }
+            // Case B: The full node is a normal Leaf
+            else {
+                BTreeNode rightNode;
+                int64_t promotedValue = node.values[MAX_KEYS / 2];
+                int64_t promotedKey = splitLeafData(node, rightNode);                
+                FileHeader header;
+                pager.readHeader(header);
+                
+                int64_t rightPageId = pager.getNewPageID(header.freeListHead);
+                
+                rightNode.parentOffset = node.parentOffset;
+                
+                pager.writeNode(currentPageId, node);
+                pager.writeNode(rightPageId, rightNode);
+                
+
+                insertIntoParent(node.parentOffset, promotedKey, promotedValue, rightPageId);
+                return set(key, value);
+            }
         }
 
         // Find the specific index where the new key goes
