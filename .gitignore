@@ -1,3 +1,9 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/settings.json
+*.o
+*.db
+*.dSYM
+kvdb
+kvdb_debug
+nodeStructure

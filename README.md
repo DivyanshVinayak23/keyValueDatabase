@@ -24,7 +24,7 @@ The design mirrors foundational database engine principles: page-oriented storag
 
 The system is divided into three primary components:
 
-### 1. B-Tree (`BTree.cpp`)
+### 1. B-Tree (`BTree.h`, `BTree.cpp`)
 
 The B-Tree is the logical indexing layer responsible for:
 
@@ -47,7 +47,7 @@ Node layout is structured to align with page boundaries to minimize disk I/O amp
 
 ---
 
-### 2. Node Structure (`nodeStructure.cpp`, `nodeStructure`)
+### 2. Node Structure (`nodeStructure.h`, `nodeStructure.cpp`)
 
 Each node contains:
 
@@ -67,7 +67,7 @@ Nodes map directly to pages managed by the pager.
 
 ---
 
-### 3. Pager (`pager.cpp`)
+### 3. Pager (`pager.h`, `pager.cpp`)
 
 The pager abstracts physical storage. It is responsible for:
 
@@ -125,11 +125,6 @@ B-Trees are optimized for block storage and minimize random disk access. This ma
 ```bash
 git clone https://github.com/DivyanshVinayak23/keyValueDatabase.git
 cd keyValueDatabase
-g++ -std=c++11 -O2 -o kvdb BTree.cpp nodeStructure.cpp pager.cpp test.cpp
+make
 ./kvdb
-
----
-
-
-
-
+```
