@@ -121,6 +121,7 @@ class BTree{
                 pager.readHeader(header);
                 
                 int64_t rightPageId = pager.getNewPageID(header.freeListHead);
+                pager.writeHeader(header);
                 
                 rightNode.parentOffset = node.parentOffset;
                 
@@ -186,6 +187,7 @@ void splitRoot(int64_t oldRootPageId, BTreeNode& oldRoot) {
         
         int64_t rightPageId = pager.getNewPageID(header.freeListHead);
         // Hack for now: pretend we wrote rightPageId so the file grows, 
+        pager.writeHeader(header);
         int64_t newRootPageId = rightPageId + 1; 
 
         BTreeNode newRoot;
@@ -216,8 +218,57 @@ void splitRoot(int64_t oldRootPageId, BTreeNode& oldRoot) {
     pager.readNode(parentPageId, parentNode);
 
     if (parentNode.keyCount >= MAX_KEYS) {
-        cout << "Cascading split required! (Parent is full). To be implemented..." << endl;
-        return;
+if (parentNode.keyCount >= MAX_KEYS) {
+        BTreeNode rightNode;
+        FileHeader header;
+        pager.readHeader(header);
+        
+        int64_t newRightPageId = pager.getNewPageID(header.freeListHead);
+        pager.writeHeader(header);
+
+        int64_t grandparentValue = parentNode.values[MAX_KEYS / 2];
+        int64_t grandparentKey = splitInternalNode(parentNode, rightNode, newRightPageId);
+
+        // CASE A: The full node is the ROOT (Internal Root)
+        if (parentNode.parentOffset == -1) {
+            int64_t newRootPageId = newRightPageId + 1; // Hack for new Page ID until Free List is done
+            
+            BTreeNode newRoot;
+            newRoot.isLeaf = false;
+            newRoot.keyCount = 1;
+            newRoot.keys[0] = grandparentKey;
+            newRoot.values[0] = grandparentValue;
+            newRoot.childrenOffsets[0] = parentPageId;
+            newRoot.childrenOffsets[1] = newRightPageId;
+            newRoot.parentOffset = -1;
+
+            parentNode.parentOffset = newRootPageId;
+            rightNode.parentOffset = newRootPageId;
+
+            pager.writeNode(parentPageId, parentNode);
+            pager.writeNode(newRightPageId, rightNode);
+            pager.writeNode(newRootPageId, newRoot);
+
+            header.rootOffset = newRootPageId;
+            pager.writeHeader(header);
+            rootPageId = newRootPageId;
+            
+            cout << "Internal Root split! Tree grew taller. New Root: " << newRootPageId << endl;
+        } 
+        // CASE B: Normal Internal Node
+        else {
+            rightNode.parentOffset = parentNode.parentOffset;
+            pager.writeNode(parentPageId, parentNode);
+            pager.writeNode(newRightPageId, rightNode);
+
+            insertIntoParent(parentNode.parentOffset, grandparentKey, grandparentValue, newRightPageId);
+        }
+        if (promotedKey < grandparentKey) {
+            return insertIntoParent(parentPageId, promotedKey, promotedValue, rightChildPageId);
+        } else {
+            return insertIntoParent(newRightPageId, promotedKey, promotedValue, rightChildPageId);
+        }
+    }
     }
 
     int insertIndex = 0;
@@ -242,6 +293,46 @@ void splitRoot(int64_t oldRootPageId, BTreeNode& oldRoot) {
     
     parentNode.keyCount++;
     pager.writeNode(parentPageId, parentNode);
+}
+
+
+int64_t splitInternalNode(BTreeNode& fullNode, BTreeNode& rightNode, int64_t rightNodePageId) {
+    int midIndex = MAX_KEYS / 2; 
+
+    int64_t promotedKey = fullNode.keys[midIndex];
+    
+    int newIndex = 0;
+    for (int i = midIndex + 1; i < MAX_KEYS; i++) {
+        rightNode.keys[newIndex] = fullNode.keys[i];
+        rightNode.values[newIndex] = fullNode.values[i];
+        newIndex++;
+    }
+
+    //Move Children Pointers
+    int newChildIndex = 0;
+    for (int i = midIndex + 1; i <= MAX_KEYS; i++) {
+        rightNode.childrenOffsets[newChildIndex] = fullNode.childrenOffsets[i];
+        newChildIndex++;
+    }
+
+    // Update the Parent Offsets of the moved children!
+
+    for(int i = 0; i < newChildIndex; i++){
+        int64_t childPageId = rightNode.childrenOffsets[i];
+        if(childPageId != -1){
+            BTreeNode childNode;
+            pager.readNode(childPageId, childNode);
+            childNode.parentOffset = rightNodePageId;
+            pager.writeNode(childPageId, childNode);
+        }
+    }
+
+    // Update Key Counts
+    rightNode.keyCount = MAX_KEYS - midIndex - 1;
+    fullNode.keyCount = midIndex;
+    rightNode.isLeaf = false;
+
+    return promotedKey;
 }
 
     private:

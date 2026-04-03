@@ -84,6 +84,33 @@ class Pager{
         fileHandle.flush();
     }
 
+    int64_t getNewPageID(int64_t& freeListHead) {
+        if (freeListHead == -1) {
+            fileHandle.seekp(0, ios::end);
+            int64_t fileSize = fileHandle.tellp();
+            return fileSize / BLOCK_SIZE;
+        } 
+        
+        else {
+            int64_t recycledPageId = freeListHead;
+            
+            int64_t nextFreePageId;
+            seekAndRead(recycledPageId * BLOCK_SIZE, reinterpret_cast<char*>(&nextFreePageId), sizeof(int64_t));
+            
+            freeListHead = nextFreePageId;
+            
+            return recycledPageId;
+        }
+    }
+
+    void freePage(int64_t deadPageId, int64_t& freeListHead) {
+        int64_t nextFreePageId = freeListHead;
+        seekAndWrite(deadPageId * BLOCK_SIZE, reinterpret_cast<const char*>(&nextFreePageId), sizeof(int64_t));
+        
+        freeListHead = deadPageId;
+        
+    }
+
 
     ~Pager(){
         if(fileHandle.is_open()){
